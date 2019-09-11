@@ -1,23 +1,52 @@
-params = [10;10;10;10;10;100];
-
-Ktot = 1;
-Ptot = 1;
-
-eqns = @(params,IK,I,AP,A) [params(4).*IK - params(3).*(Ktot - IK) + params(5).*AP;...
-    params(2).*AP - params(1).*(Ptot - AP).*A + params(6).*IK;...
-    - params(2).*AP + params(1).*(Ptot - AP).*A - params(5).*AP;...
-    - params(4).*IK - params(6).*IK + params(1).*(Ktot - IK).*I];
-
-dIdt = @(IK,AP,A,I) params(4).*IK - params(3).*(Ktot - IK) + params(5).*AP;
-dAdt = @(IK,AP,A,I) params(2).*AP - params(1).*(Ptot - AP).*A + params(6).*IK;
-dAPdt = @(IK,AP,A,I) - params(2).*AP + params(1).*(Ptot - AP).*A - params(5).*AP;
-dIKdt = @(IK,AP,A,I) - params(4).*IK - params(6).*IK + params(1).*(Ktot - IK).*I;
-
-x_0 = [0,1,0,1];
-
-[T, X] = ode45(@(t,x) [eqns(params,x(1),x(2),x(3),x(4))], [0 1], x_0 );
-
-%[T, X] = ode45(@(t,x) [dIdt(x(1),x(2),x(3),x(4));dAdt(x(1),x(2),x(3),x(4));dAPdt(x(1),x(2),x(3),x(4));dIKdt(x(1),x(2),x(3),x(4))], [0 1], x_0 );
-
+%% Run function and plot
 figure;
-plot(T,X)
+hold on;
+
+finalA_I1 = [];
+
+for Ktot = 10.^[-3:0.1:2]
+
+    finalA_I1 = [finalA_I1,ode_out(Ktot,1)];
+    
+end
+
+finalA_I100 = [];
+
+for Ktot = 10.^[-3:0.1:2]
+
+    finalA_I100 = [finalA_I100,ode_out(Ktot,100)];
+    
+end
+
+finalA_I1_norm = finalA_I1./max(finalA_I1);
+finalA_I100_norm = finalA_I100./max(finalA_I100);
+
+plot([-3:0.1:2],[finalA_I1_norm;finalA_I100_norm],'x')
+
+legend('I = 1 uM','I = 100 uM')
+ylabel('Normalized active protein')
+xlabel('Log of Ktot')
+
+%% function section
+function finalA = ode_out(Ktot,Itot)
+
+    konA = 10;
+    koffA = 10;
+    konI = 10;
+    koffI = 10;
+    kcatI = 10;
+    kcatA = 100;
+    
+    Ptot = 1;
+
+    eqns = @(A,AP,I,IK) ...
+    [koffA*AP - konA*(Ptot - AP)*A + kcatA*IK;... %dAdt
+    - koffA*AP + konA*(Ptot - AP)*A - kcatI*AP;... %dAPdt
+    koffI*IK - konI*(Ktot - IK)*I + kcatI*AP;... %dIdt
+    - koffI*IK - kcatA*IK + konI*(Ktot - IK)*I]; %dIKdt
+
+    x_0 = [0,0,Itot,0];
+
+    [T, X] = ode45(@(t,x) eqns(x(1),x(2),x(3),x(4)), [0 10], x_0 );
+    finalA = X(end,1);
+end
